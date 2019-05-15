@@ -129,5 +129,5 @@ pip-selfcheck.json
 # do not index databases or logfiles
 *.log
 *.db
-abuse*
+abuse-*
 spam*
