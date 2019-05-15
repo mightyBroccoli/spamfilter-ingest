@@ -80,7 +80,12 @@ class AbuseReport:
 			(node, domain, resource) = match.groups()
 
 			# stamp
-			spam_time = message_parsed.find('.//{urn:xmpp:delay}delay').get('stamp')
+			all_delay_tags = message_parsed.findall('.//{urn:xmpp:delay}delay')
+			for tag in all_delay_tags:
+				if "@" in tag.get("from"):
+					continue
+
+				spam_time = message_parsed.find('.//{urn:xmpp:delay}delay').get('stamp')
 
 			# body
 			spam_body = message_parsed.find('{jabber:client}body')
