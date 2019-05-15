@@ -83,7 +83,9 @@ class AbuseReport:
 			spam_time = message_parsed.find('.//{urn:xmpp:delay}delay').get('stamp')
 
 			# body
-			spam_body = message_parsed.find('{jabber:client}body').text
+			spam_body = message_parsed.find('{jabber:client}body')
+			if spam_body is not None:
+				spam_body = spam_body.text
 
 			# format sql
 			sql = 'INSERT INTO spam("user", "domain", "ts", "message") VALUES("{}", "{}", "{}", "{}");'.format(
