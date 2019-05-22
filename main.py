@@ -3,8 +3,8 @@
 import argparse
 import re
 import sqlite3
-import subprocess
 
+import tabulate
 from defusedxml import ElementTree
 
 
@@ -42,13 +42,26 @@ class AbuseReport:
 		"""
 		# if a specific domain is supplied return only that set
 		if self.domain is not None:
-			sql = 'sqlite3 -column -header spam.db "SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain ' \
-				'FROM spam WHERE domain=\'{}\';"'.format(self.domain)
-		else:
-			sql = 'sqlite3 -column -header spam.db "SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain AS domain ' \
-				'FROM spam GROUP BY domain ORDER BY 1 DESC LIMIT 10;"'
+			# first and last time seen spam from specified domain
+			first = self.conn.execute("SELECT ts FROM spam WHERE domain=:domain ORDER BY ts LIMIT 1",
+									  {"domain": self.domain}).fetchone()[0]
+			last = self.conn.execute("SELECT ts FROM spam WHERE domain=:domain ORDER BY ts DESC LIMIT 1",
+									 {"domain": self.domain}).fetchone()[0]
 
-		print(subprocess.getoutput(sql))
+			print("First seen : {first}\nLast seen : {last}\n".format(first=first, last=last))
+
+			result = self.conn.execute('SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain FROM spam '
+									   'WHERE domain=\'{}\';'.format(self.domain))
+		else:
+
+			result = self.conn.execute('SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain AS domain '
+									   'FROM spam GROUP BY domain ORDER BY 1 DESC LIMIT 10;')
+
+		# format data as table
+		table = tabulate.tabulate(result, headers=["messages", "bots", "domain"], tablefmt="orgtbl")
+		print(table)
+
+
 
 	def ingest(self):
 		"""
@@ -93,11 +106,9 @@ class AbuseReport:
 				spam_body = spam_body.text
 
 			# format sql
-			sql = 'INSERT INTO spam("user", "domain", "ts", "message") VALUES("{}", "{}", "{}", "{}");'.format(
-				node, domain, spam_time, spam_body
-			)
 			try:
-				self.conn.execute(sql)
+				self.conn.execute('INSERT INTO spam  VALUES(:user, :domain, :spam_time, :spam_body);',
+								  {"user": node, "domain": domain, "spam_time": spam_time, "spam_body": spam_body})
 			except sqlite3.IntegrityError:
 				pass
 			finally:
@@ -115,7 +126,7 @@ if __name__ == "__main__":
 
 """
 # Top 10 Domains and their score
-SELECT COUNT(*) AS messages,COUNT(DISTINCT user)  AS bots,domain AS 'domain'
+SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain AS 'domain'
 FROM spam 
 GROUP BY domain
 ORDER BY 1 DESC LIMIT 10;

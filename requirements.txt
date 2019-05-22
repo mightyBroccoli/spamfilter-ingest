@@ -1,2 +1,3 @@
 defusedxml
-slixmpp
+tabulate
+dnspython

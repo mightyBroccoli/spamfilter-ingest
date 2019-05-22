@@ -126,8 +126,6 @@ dmypy.json
 pyvenv.cfg
 pip-selfcheck.json
 
-# do not index databases or logfiles
-*.log
-*.db
-abuse-*
-spam*
+# project specific files
+spam.db
+spam-*.txt
