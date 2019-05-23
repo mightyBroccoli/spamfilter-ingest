@@ -128,4 +128,5 @@ pip-selfcheck.json
 
 # project specific files
 spam.db
-spam-*.txt
+config.json
+spam-*.txt*

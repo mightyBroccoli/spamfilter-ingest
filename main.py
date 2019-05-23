@@ -6,6 +6,8 @@ import sqlite3
 
 import tabulate
 from defusedxml import ElementTree
+import os
+import gzip
 
 
 class AbuseReport:
@@ -14,8 +16,9 @@ class AbuseReport:
 	def __init__(self, arguments):
 		self.infile = arguments.infile
 		self.domain = arguments.domain
-		self.conn = sqlite3.connect('spam.db')
+		self.path = os.path.dirname(__file__)
 
+		self.conn = sqlite3.connect("".join([self.path, "/spam.db"]))
 		self.jid_pattern = re.compile("^(?:([^\"&'/:<>@]{1,1023})@)?([^/@]{1,1023})(?:/(.{1,1023}))?$")
 		self.message_pattern = re.compile(r'<message.*?</message>', re.DOTALL)
 
@@ -65,16 +68,42 @@ class AbuseReport:
 
 	def ingest(self):
 		"""
-		method to ingest xml messages into sqlite database
+		ingest method to split up the ingest file list
+		if necessary decompression and decoding are applied
 		"""
-		try:
-			with open(self.infile, "r", encoding="utf-8") as spam:
-				log = re.findall(self.message_pattern, spam.read())
+		magic_number = b"\x1f\x8b\x08"
 
+		# split up list
+		for element in self.infile:
+
+			try:
+				# open file in binary mode
+				with open(element, "rb") as infile:
+					content = infile.read()
+
+			except FileNotFoundError as err:
+				print(err)
+
+			# check file for gzip magic number
+			# if magic number is present decompress and decode file
+			if content.startswith(magic_number):
+				content = gzip.decompress(content).decode("utf-8")
+			# in any other case read file normally
+			else:
+				content = content.decode("utf-8")
+
+			if content is not None:
+				self.parse(content)
+
+	def parse(self, infile):
+		"""
+		method to parse xml messages
+		:param infile: string containing xml stanzas
+		"""
+		log = re.findall(self.message_pattern, infile)
+
+		if log is not None:
 			self.db_import(log)
-		except FileNotFoundError as err:
-			print(err)
-			exit(1)
 
 	def db_import(self, message_log):
 		"""
@@ -117,7 +146,7 @@ class AbuseReport:
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument('-in', '--infile', help='set path to input file', dest='infile')
+	parser.add_argument('-in', '--infile', nargs='+', help='set path to input file', dest='infile')
 	parser.add_argument('-d', '--domain', help='specify report domain', dest='domain')
 	args = parser.parse_args()
 
