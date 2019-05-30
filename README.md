@@ -18,6 +18,19 @@ modules:
     ...
 ```
 
+### config.json
+The `config.json` file is used to preserve date from possible updates to this script. `config.py` will load `config
+.json` to extract the name, which is used to sign the report message with. In the future there might be other things 
+the `config.json` may contain.
+
+```json
+$ cat config.json
+{
+  "name": "username"
+}
+```
+
+
 ## usage main.py
 ```
 usage: main.py [-h] [-in INFILE [INFILE ...]] [-d DOMAIN] [-r]

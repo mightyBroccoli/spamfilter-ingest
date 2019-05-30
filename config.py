@@ -15,5 +15,4 @@ except FileNotFoundError:
 
 
 class Config(object):
-	"""extract secret key to use for the webserver"""
 	name = config["name"]
