@@ -260,16 +260,15 @@ class AbuseReport:
 			# return list sorted by priority and weight
 			return sorted(results, key=lambda i: (i['priority'], i["weight"]))
 
-		else:
-			# prevent empty info when srv records are not present
-			info = dict()
+		# prevent empty info when srv records are not present
+		info = dict()
 
-			# gather necessary info from srv records
-			info["host"] = domain
-			info["ip"] = [ip.address for ip in dns.query(info["host"], "A")]
-			results.append(info)
+		# gather necessary info from srv records
+		info["host"] = domain
+		info["ip"] = [ip.address for ip in dns.query(info["host"], "A")]
+		results.append(info)
 
-			return results
+		return results
 
 
 if __name__ == "__main__":
