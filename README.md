@@ -44,8 +44,30 @@ optional arguments:
   -r, --report          toggle report output to file
 ```
 
+#### run with no argument
+If `main.py` is run without any arguments attached, then the script will output a "top 10" table showing the amount 
+of messages/ bots for the most spammy domains in the database.
+
+##### example
+```bash
+$./main.py
+
+|   messages |   bots | domain        |
+|------------+--------+---------------|
+|         42 |      1 | example.net   |
+|         17 |      9 | example.rs    |
+|          7 |      5 | example.cd    |
+|          5 |      3 | example.de    |
+|          4 |      4 | example.ru    |
+|          3 |      1 | example.co.uk |
+|          3 |      3 | example.com   |
+|          3 |      1 | example.net   |
+|          3 |      1 | example.fr    |
+|          3 |      1 | example.com   |
+```
+
 #### -in / --infile
-The `--in` or `--infile` argument is designed to run automatically via the logrotate daemon. Therefor the script is 
+The `--in` or `--infile` argument is designed to run automatically via the logrotate daemon. Therefore the script is 
 able to process gzip compressed files and also multiple files at once via shell expansion.
 
 ##### example

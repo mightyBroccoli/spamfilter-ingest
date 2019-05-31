@@ -44,8 +44,9 @@ class AbuseReport:
 
 	def egest(self):
 		"""
-		report method
-		:return: top10 score or domain specific data
+		egest method
+		if specific domain is supplied return only those results
+		in any other case return top 10 table
 		"""
 		result = list()
 
@@ -60,7 +61,8 @@ class AbuseReport:
 					MIN(ts) AS first,MAX(ts) AS last FROM spam WHERE domain = :domain;''',
 					{"domain": domain}).fetchall()
 
-				# ugly tuple list swapping for nicer formatting
+				# if specified domain is not listed yet, the resulting table would miss the domain name
+				# this ugle tuple 2 list swap prevents this behaviour
 				temp = list(query[0])
 				if temp[2] is None:
 					temp[2] = domain
@@ -115,6 +117,7 @@ class AbuseReport:
 	def parse(self, infile):
 		"""
 		method to parse xml messages
+		:type infile: str
 		:param infile: string containing xml stanzas
 		"""
 		log = re.findall(self.message_pattern, infile)
@@ -125,6 +128,7 @@ class AbuseReport:
 	def db_import(self, message_log):
 		"""
 		import xml stanzas into database
+		:type infile: str
 		:param message_log: xml messages
 		"""
 		self.conn.execute('''CREATE TABLE IF NOT EXISTS "spam" ("user" TEXT, "domain" TEXT, "ts" TEXT, "message" TEXT, 
@@ -161,6 +165,12 @@ class AbuseReport:
 				self.conn.commit()
 
 	def gen_report(self, domain, query):
+		"""
+		method generating the report files
+		:type domain: str
+		:param domain: string containing a domain name
+		:param query: sqlite cursor object containing the query results for the specified domain
+		"""
 		try:
 			# open abuse report template file
 			with open("/".join([self.path, "template/abuse-template.txt"]), "r", encoding="utf-8") as template:
@@ -192,6 +202,15 @@ class AbuseReport:
 			report_out.write(content)
 
 	def report_template(self, template, domain, query):
+		"""
+		method to collect and format the template file to the final abuse report
+		:type template: str
+		:type domain: str
+		:param template: string containing the abuse report template
+		:param domain: string containing a domain name
+		:param query: sqlite cursor object containing the query results for the specified domain
+		:return: string containing the fully formatted abuse report
+		"""
 		name = Config.name
 
 		# lookup srv and domain info
@@ -206,6 +225,12 @@ class AbuseReport:
 		return report_out
 
 	def report_jids(self, domain):
+		"""
+		method to collect all involved jids from the database
+		:type domain: str
+		:param domain: string containing a domain name
+		:return: formatted string containing the result
+		"""
 
 		jids = self.conn.execute('''SELECT user || '@' || domain as jid FROM spam WHERE domain=:domain GROUP BY user
 			ORDER BY 1;''', {"domain": domain}).fetchall()
@@ -214,9 +239,10 @@ class AbuseReport:
 
 	def report_logs(self, domain):
 		"""
-
-		:param domain:
-		:return:
+		method to collect all messages grouped by frequency
+		:type domain: str
+		:param domain: string containing a domain name
+		:return: formatted string containing the result
 		"""
 		logs = self.conn.execute('''SELECT char(10)||MIN(ts)||' - '||MAX(ts)||char(10)||COUNT(*)||' messages:'||char(10)
 			||'========================================================================'||char(10)||message||char(10)||
