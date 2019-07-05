@@ -2,22 +2,67 @@
 import json
 import os
 
-# filepath of the config.json in the project directory
-path = os.path.dirname(__file__)
-filepath = ("/".join([path, "config.json"]))
-
-# try to read config.json if nonexistent create config.json an populate it
-try:
-	with open(filepath, "r", encoding="utf-8") as f:
-		config = json.load(f)
-
-except FileNotFoundError:
-	with open(filepath, "w", encoding="utf-8") as f:
-		config = {
-			"name": "",
-		}
-		f.write(json.dumps(config))
-
 
 class Config(object):
-	name = config["name"]
+	def __init__(self):
+		self.config = dict()
+		self.valid_config = bool
+
+		# filepath of the config.json in the project directory
+		self.path = os.path.dirname(__file__)
+		self.filepath = ('/'.join([self.path, 'config.json']))
+
+		# load config
+		self.load()
+
+	def load(self):
+		try:
+			# try to read config.json
+			with open(self.filepath, "r", encoding="utf-8") as f:
+				self.config = json.load(f)
+
+		except FileNotFoundError:
+			# if file is absent create file
+			open(self.filepath, "w").close()
+
+		except json.decoder.JSONDecodeError:
+			# config file is present but empty
+			pass
+
+	def get_at(self, attrib):
+		"""
+		retrieve attribute from config file
+		:type attrib: str
+		:param attrib: keyword corresponding to keyword in config dictionary
+		:return: value of specified keyword or False if keyword is not present in dictionary
+		"""
+		if attrib in self.config:
+			# return corresponding attrib from config
+			return self.config[attrib]
+		else:
+			# if attrib is not present in config return False
+			self.config[attrib] = False
+
+	def set_at(self, attrib, param):
+		"""
+		set attribute to parameter inside config file
+		:type attrib: str
+		:type param: str
+		:param attrib: keyword which should be updated/created in config dictionary
+		:param param: parameter the keyword should be updated to
+		"""
+		self.config[attrib] = param
+
+		# save new attrib to file
+		with open(self.filepath, "w", encoding="utf-8") as f:
+			f.write(json.dumps(self.config, indent=4))
+
+	def unset_at(self, attrib):
+		"""
+		unset attribute inside config file
+		:type attrib: str
+		:param attrib: attribute which should be unset inside config file
+		"""
+		if attrib in self.config:
+			# only if attrib is actually present unset it
+			self.config.pop(attrib)
