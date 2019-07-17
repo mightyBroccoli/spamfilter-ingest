@@ -55,7 +55,8 @@ class AbuseReport:
 			for domain in self.domain:
 
 				sql_query = self.conn.execute('''SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain, MIN(ts)
-							AS first,MAX(ts) AS last FROM spam WHERE domain = :domain;''',{"domain": domain}).fetchall()
+							AS first,MAX(ts) AS last FROM spam WHERE ts BETWEEN DATE('now','-1 months') AND DATE('now')
+							and domain = :domain;''',{"domain": domain}).fetchall()
 
 				# if specified domain is not listed yet, the resulting table will not show the domain name
 				# this ugly tuple 2 list swap prevents this
@@ -76,8 +77,9 @@ class AbuseReport:
 			if self.config.get_at("top10_view"):
 				result = self.conn.execute('''SELECT * FROM "top10"''').fetchall()
 			else:
-				result = self.conn.execute('''SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain AS domain
-										FROM spam GROUP BY domain ORDER BY 1 DESC LIMIT 10''').fetchall()
+				result = self.conn.execute('''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain AS
+					domain FROM spam WHERE ts BETWEEN DATE('now','-14 days') AND DATE('now') GROUP BY 	domain
+					ORDER BY 1 DESC LIMIT 10;''').fetchall()
 
 		# tabelize data
 		spam_table = tabulate.tabulate(result, headers=["messages", "bots", "domain", "first seen", "last seen"],

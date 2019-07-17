@@ -38,8 +38,8 @@ class ReportDomain:
 		:return: formatted result string
 		"""
 
-		jids = self.conn.execute('''SELECT user || '@' || domain as jid FROM spam WHERE domain=:domain GROUP BY user
-			ORDER BY 1;''', {"domain": domain}).fetchall()
+		jids = self.conn.execute('''SELECT user || '@' || domain AS jid FROM spam WHERE ts BETWEEN DATE('now','-14 days') 
+		AND DATE('now') AND domain=:domain GROUP BY user ORDER BY 1;''', {"domain": domain}).fetchall()
 
 		return tabulate.tabulate(jids, tablefmt="plain")
 
@@ -52,7 +52,8 @@ class ReportDomain:
 		logs = self.conn.execute('''SELECT CHAR(10) || MIN(ts) || ' - ' || MAX(ts) || char(10) || COUNT(*) || 
 			'messages:' || char(10) ||'========================================================================' || 
 			char(10) || message || char(10) || '========================================================================'
-			FROM spam WHERE domain=:domain GROUP BY message ORDER BY COUNT(*) DESC LIMIT 10;''', {"domain": domain}).fetchall()
+			FROM spam WHERE ts BETWEEN DATE('now','-14 days') AND DATE('now') AND domain=:domain GROUP BY message ORDER
+			BY COUNT(*) DESC LIMIT 10;''', {"domain": domain}).fetchall()
 
 		return tabulate.tabulate(logs, tablefmt="plain")
 

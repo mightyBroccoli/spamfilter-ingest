@@ -1,4 +1,5 @@
 # ejabberd mod_spam_filter ingest
+[![CodeFactor](https://www.codefactor.io/repository/github/mightybroccoli/spamfilter-ingest/badge)](https://www.codefactor.io/repository/github/mightybroccoli/spamfilter-ingest)
 
 ## installation
 Python 3 virtual environment
