@@ -29,10 +29,9 @@ class Config(object):
 			# config file is present but empty
 			pass
 
-	def get_at(self, attrib):
+	def get_at(self, attrib: str):
 		"""
 		retrieve attribute from config file
-		:type attrib: str
 		:param attrib: keyword corresponding to keyword in config dictionary
 		:return: value of specified keyword or False if keyword is not present in dictionary
 		"""
@@ -43,11 +42,9 @@ class Config(object):
 			# if attrib is not present in config return False
 			self.config[attrib] = False
 
-	def set_at(self, attrib, param):
+	def set_at(self, attrib: str, param):
 		"""
 		set attribute to parameter inside config file
-		:type attrib: str
-		:type param: str
 		:param attrib: keyword which should be updated/created in config dictionary
 		:param param: parameter the keyword should be updated to
 		"""
@@ -57,10 +54,9 @@ class Config(object):
 		with open(self.filepath, "w", encoding="utf-8") as f:
 			f.write(json.dumps(self.config, indent=4))
 
-	def unset_at(self, attrib):
+	def unset_at(self, attrib: str):
 		"""
 		unset attribute inside config file
-		:type attrib: str
 		:param attrib: attribute which should be unset inside config file
 		"""
 		if attrib in self.config:

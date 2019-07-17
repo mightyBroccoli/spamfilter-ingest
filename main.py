@@ -31,8 +31,7 @@ class AbuseReport:
 
 	def main(self):
 		"""main method guiding the actions to take"""
-		method deciding over which action to take
-		"""
+
 		if self.infile is None:
 			# infile unset -> report top10
 			self.egest()
@@ -55,34 +54,38 @@ class AbuseReport:
 			# iterate over all domains supplied
 			for domain in self.domain:
 
-				query = self.conn.execute('''SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain, MIN(ts)
-					AS first,MAX(ts) AS last FROM spam WHERE domain = :domain;''', {"domain": domain}).fetchall()
+				sql_query = self.conn.execute('''SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain, MIN(ts)
+							AS first,MAX(ts) AS last FROM spam WHERE domain = :domain;''',{"domain": domain}).fetchall()
 
 				# if specified domain is not listed yet, the resulting table will not show the domain name
 				# this ugly tuple 2 list swap prevents this
-				temp = list(query[0])
+				temp = list(sql_query[0])
 				if temp[2] is None:
 					temp[2] = domain
-					query[0] = tuple(temp)
+					sql_query[0] = tuple(temp)
 
-				# extend result table
-				result.extend(query)
+				# extend result tables
+				result.extend(sql_query)
 
 				# generate report if enabled
 				if self.report:
-					self.gen_report(domain, query)
+					self.gen_report(domain, sql_query)
+
 		else:
 			# in any other case return top 10 view
 			if self.config.get_at("top10_view"):
 				result = self.conn.execute('''SELECT * FROM "top10"''').fetchall()
 			else:
 				result = self.conn.execute('''SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain AS domain
-					FROM spam GROUP BY domain ORDER BY 1 DESC LIMIT 10''').fetchall()
+										FROM spam GROUP BY domain ORDER BY 1 DESC LIMIT 10''').fetchall()
 
-		# format data as table
-		table = tabulate.tabulate(result, headers=["messages", "bots", "domain", "first seen", "last seen"],
-													tablefmt="orgtbl")
-		print(table, file=sys.stdout)
+		# tabelize data
+		spam_table = tabulate.tabulate(result, headers=["messages", "bots", "domain", "first seen", "last seen"],
+									tablefmt="github")
+
+		# output to stdout
+		output = "\n\n".join([spam_table])
+		print(output, file=sys.stdout)
 
 	def ingest(self):
 		"""
@@ -117,10 +120,9 @@ class AbuseReport:
 				if log is not None:
 					self.db_import(log)
 
-	def db_import(self, message_log):
+	def db_import(self, message_log: list):
 		"""
 		import xml stanzas into database
-		:type message_log: list
 		:param message_log: list of xml messages
 		"""
 		for message in message_log:
@@ -133,6 +135,7 @@ class AbuseReport:
 
 			# stamp
 			all_delay_tags = message_parsed.findall('.//{urn:xmpp:delay}delay')
+			spam_time = None
 			for tag in all_delay_tags:
 				if "@" in tag.get("from"):
 					continue
@@ -153,11 +156,9 @@ class AbuseReport:
 			finally:
 				self.conn.commit()
 
-	def gen_report(self, domain, query):
+	def gen_report(self, domain: str, query: list):
 		"""
 		method generating the report files
-		:type domain: str
-		:type query: list
 		:param domain: string containing a domain name
 		:param query: list of tuples containing the query results for the specified domain/s
 		"""
@@ -183,15 +184,15 @@ class AbuseReport:
 
 		# write report files
 		with open("/".join([self.path, "report", report_filename]), "w", encoding="utf-8") as report_out:
-			content = report.report_template(report_template, domain, query)
+			content = report.template(report_template, domain, query)
 			report_out.write(content)
 
 		with open("/".join([self.path, "report", jids_filename]), "w", encoding="utf-8") as report_out:
-			content = report.report_jids(domain)
+			content = report.jids(domain)
 			report_out.write(content)
 
 		with open("/".join([self.path, "report", logs_filename]), "w", encoding="utf-8") as report_out:
-			content = report.report_logs(domain)
+			content = report.logs(domain)
 			report_out.write(content)
 
 

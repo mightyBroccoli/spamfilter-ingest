@@ -12,12 +12,9 @@ class ReportDomain:
 		self.config = config
 		self.conn = conn
 
-	def report_template(self, template, domain, query):
+	def template(self, template: str, domain: str, query: list):
 		"""
 		method to retrieve and format the template file
-		:type template: str
-		:type domain: str
-		:type query: list
 		:param template: string containing the abuse report template
 		:param domain: string containing a domain name
 		:param query: list of tuples containing the query results for the specified domain/s
@@ -25,21 +22,18 @@ class ReportDomain:
 		"""
 		name = self.config.get_at("name")
 
-		# lookup srv and domain info
-		info = self.srvlookup(domain)
-		srv = info[0]["host"]
-		ips = "".join(info[0]["ip"])
+		# lookup and format srv target and ip
+		srv, ips = self.srv(domain)
 		summary = tabulate.tabulate(query, headers=["messages", "bots", "domain", "first seen", "last seen"],
-									tablefmt="orgtbl")
+									tablefmt="github")
 
 		report_out = template.format(name=name, domain=domain, srv=srv, ips=ips, summary=summary)
 
 		return report_out
 
-	def report_jids(self, domain):
+	def jids(self, domain: str):
 		"""
 		method to collect all involved jids from the database
-		:type domain: str
 		:param domain: string containing a domain name
 		:return: formatted result string
 		"""
@@ -49,10 +43,9 @@ class ReportDomain:
 
 		return tabulate.tabulate(jids, tablefmt="plain")
 
-	def report_logs(self, domain):
+	def logs(self, domain: str):
 		"""
 		method to collect all messages grouped by frequency
-		:type domain: str
 		:param domain: string containing a domain name
 		:return: formatted string containing the result
 		"""
@@ -63,22 +56,54 @@ class ReportDomain:
 
 		return tabulate.tabulate(logs, tablefmt="plain")
 
-	def srvlookup(self, domain):
+	def srv(self, domain: str, only_highest: bool = True):
+		info = self._srvlookup(domain)
+
+		if only_highest:
+			target = info[0]["host"]
+			ips = info[0]["ip"]
+
+			return target, ips
+
+		return info
+
+	@staticmethod
+	def _getip(domain: str):
+		"""
+		method to query the a / aaaa record of a specified domain
+		:param domain: valid domain target
+		:return: filtered list of all a/ aaaa records
+		"""
+		# init records
+		a, a4 = None, None
+
+		try:
+			# query and join both a and aaaa records
+			a = ", ".join([ip.address for ip in dns.query(domain, "A")])
+			a4 = ", ".join([ip.address for ip in dns.query(domain, "AAAA")])
+
+		except (dns.NXDOMAIN, dns.NoAnswer):
+			# catch NXDOMAIN and NoAnswer tracebacks not really important
+			pass
+
+		return list(filter(None.__ne__, [a, a4]))
+
+	def _srvlookup(self, domain: str):
 		"""
 		srv lookup method for the domain provided, if no srv record is found the base domain is used
-		:type domain: str
 		:param domain: provided domain to query srv records for
 		:return: sorted list of dictionaries containing host and ip info
 		"""
-		# init result list
+		# init
 		results = list()
+		srv_records = None
 
 		try:
 			srv_records = dns.query('_xmpp-client._tcp.{}'.format(domain), 'SRV')
 
 		except (dns.NXDOMAIN, dns.NoAnswer):
 			# catch NXDOMAIN and NoAnswer tracebacks
-			srv_records = None
+			pass
 
 		# extract record
 		if srv_records is not None:
@@ -87,13 +112,14 @@ class ReportDomain:
 				info = dict()
 
 				# gather necessary info from srv records
-				info["host"] = str(record.target).rstrip('.')
+				info["host"] = record.target.to_text().rstrip('.')
+				info["port"] = record.port
 				info["weight"] = record.weight
 				info["priority"] = record.priority
-				info["ip"] = [ip.address for ip in dns.query(info["host"], "A")]
+				info["ip"] = ", ".join(self._getip(record.target.to_text()))
 				results.append(info)
 
-			# return list sorted by priority and weight
+			# return list sorted by priority and weightre
 			return sorted(results, key=lambda i: (i['priority'], i["weight"]))
 
 		# prevent empty info when srv records are not present
@@ -101,7 +127,7 @@ class ReportDomain:
 
 		# gather necessary info from srv records
 		info["host"] = domain
-		info["ip"] = [ip.address for ip in dns.query(info["host"], "A")]
+		info["ip"] = ", ".join(self._getip(domain))
 		results.append(info)
 
 		return results
