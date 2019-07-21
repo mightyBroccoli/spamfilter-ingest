@@ -31,6 +31,8 @@ class AbuseReport:
 
 	def main(self):
 		"""main method guiding the actions to take"""
+		# run check method before each execution
+		self.check()
 
 		if self.infile is None:
 			# infile unset -> report top10
@@ -42,6 +44,23 @@ class AbuseReport:
 
 		# close sqlite connection
 		self.conn.close()
+
+	def check(self):
+		# check if the minimum requirements are met
+		table = ('table', 'spam')
+		master = self.conn.execute('''SELECT type, name from  sqlite_master;''').fetchall()
+
+		# if not run create method
+		if table not in master:
+			self.create()
+
+	def create(self):
+		# open and execute base schema file
+		script = "/".join([self.path, "schema.sql"])
+		with open(script) as file:
+			schema = file.read()
+
+		self.conn.executescript(schema)
 
 	def egest(self):
 		"""egest method returning the database results"""
@@ -74,12 +93,9 @@ class AbuseReport:
 
 		else:
 			# in any other case return top 10 view
-			if self.config.get_at("top10_view"):
-				result = self.conn.execute('''SELECT * FROM "top10"''').fetchall()
-			else:
-				result = self.conn.execute('''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain AS
-					domain FROM spam WHERE ts BETWEEN DATE('now','-14 days') AND DATE('now') GROUP BY 	domain
-					ORDER BY 1 DESC LIMIT 10;''').fetchall()
+			result = self.conn.execute('''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain AS
+				domain FROM spam WHERE ts BETWEEN DATE('now','-14 days') AND DATE('now') GROUP BY 	domain
+				ORDER BY 1 DESC LIMIT 10;''').fetchall()
 
 		# tabelize data
 		spam_table = tabulate.tabulate(result, headers=["messages", "bots", "domain", "first seen", "last seen"],
