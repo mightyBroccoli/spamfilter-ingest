@@ -10,15 +10,15 @@ the above mentioned server is used as an open relay to send vast amounts
 of XMPP spam to different unrelated servers, such as the server I
 administer.
 
-Spammers are using the In-Band-Registration feature on that server to
-create a large number of accounts, and to send mass messages to my
+Spammers use the In-Band-Registration feature on that server to
+create a large number of accounts, used to send mass messages to my
 users.
 
-Please contact the server owner to disable In-Band-Registration, to take
+Please contact the server owner to disable In-Band-Registration, take
 measures against spam relaying or to shut down the XMPP service.
 
-Also please find attached a list of the bot accounts and an excerpt of
-the spam messages sent to my service.
+Additionally you find a list of the bot accounts and an excerpt of
+the spam messages sent to my service attached to this message.
 
 {summary}
 
