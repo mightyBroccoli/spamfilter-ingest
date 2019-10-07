@@ -22,6 +22,9 @@ class AbuseReport:
 		self.infile = arguments.infile
 		self.domain = arguments.domain
 		self.report = arguments.report
+		# TODO revise new parameter names
+		self.a = arguments.a
+		self.b = arguments.b or "now"
 		self.path = os.path.dirname(__file__)
 		self.config = Config()
 
@@ -67,39 +70,57 @@ class AbuseReport:
 		# init result list
 		result = list()
 
+		# building block base query
+		base_query = '''SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain, MIN(ts) AS first, \
+			MAX(ts) AS last FROM spam'''
+
+		# date -Ins outputs %S,%f but python sqlite3 is not able to handle the ,
+		self.a = self.a.replace(',', '.')
+		self.b = self.b.replace(',', '.')
+
+		# if a then from a up until end
+		if self.a is not None:
+			# apply localtime to the provided timestamp
+			timesperiod = '''ts > STRFTIME('%Y-%m-%dT%H:%M:%S', '{a}', 'localtime') \
+				AND ts < STRFTIME('%Y-%m-%dT%H:%M:%S', '{b}', 'localtime')'''.format(a=self.a, b=self.b)
+		else:
+			# default: query 1 month timeperiod
+			timesperiod = '''ts > DATETIME('now','start of day', '-1 months') \
+				AND ts < STRFTIME('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')'''
+
 		# if a domain is specified return only that info
 		if self.domain is not None:
 
 			# iterate over all domains supplied
 			for domain in self.domain:
 
-				sql_query = self.conn.execute('''SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain, MIN(ts)
-							AS first,MAX(ts) AS last FROM spam WHERE ts BETWEEN DATE('now','-1 months') AND DATE('now')
-							and domain = :domain;''',{"domain": domain}).fetchall()
+				# build and execute
+				sql = '''{base} WHERE domain = :domain AND {time};'''.format(base=base_query, time=timesperiod)
+				query = self.conn.execute(sql, {"domain": domain}).fetchall()
 
 				# if specified domain is not listed yet, the resulting table will not show the domain name
 				# this ugly tuple 2 list swap prevents this
-				temp = list(sql_query[0])
+				temp = list(query[0])
 				if temp[2] is None:
 					temp[2] = domain
-					sql_query[0] = tuple(temp)
+					query[0] = tuple(temp)
 
 				# extend result tables
-				result.extend(sql_query)
+				result.extend(query)
 
 				# generate report if enabled
 				if self.report:
-					self.gen_report(domain, sql_query)
+					self.gen_report(domain, query)
 
 		else:
-			# in any other case return top 10 view
-			result = self.conn.execute('''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain AS
-				domain FROM spam WHERE ts BETWEEN DATE('now','-14 days') AND DATE('now') GROUP BY 	domain
-				ORDER BY 1 DESC LIMIT 10;''').fetchall()
+			# build and execute
+			grouping = 'GROUP BY domain ORDER BY 1 DESC LIMIT 10'
+			sql = '''{base} WHERE {time}{group};'''.format(base=base_query, time=timesperiod, group=grouping)
+			result = self.conn.execute(sql).fetchall()
 
 		# tabelize data
 		spam_table = tabulate.tabulate(result, headers=["messages", "bots", "domain", "first seen", "last seen"],
-									tablefmt="github")
+									   tablefmt="github")
 
 		# output to stdout
 		output = "\n\n".join([spam_table])
@@ -168,7 +189,7 @@ class AbuseReport:
 			# format sql
 			try:
 				self.conn.execute('''INSERT INTO spam VALUES(:user, :domain, :spam_time, :spam_body);''',
-								{"user": node, "domain": domain, "spam_time": spam_time, "spam_body": spam_body})
+								  {"user": node, "domain": domain, "spam_time": spam_time, "spam_body": spam_body})
 			except sqlite3.IntegrityError:
 				pass
 			finally:
@@ -219,6 +240,8 @@ if __name__ == "__main__":
 	parser.add_argument('-in', '--infile', nargs='+', help='set path to input file', dest='infile')
 	parser.add_argument('-d', '--domain', action='append', help='specify report domain', dest='domain')
 	parser.add_argument('-r', '--report', action='store_true', help='toggle report output to file', dest='report')
+	parser.add_argument('-f', '--from', help='ISO-8601 timestamp where to start the search', dest='a')
+	parser.add_argument('-t', '--to', help='ISO-8601 timestamp up until where to start the search', dest='b')
 	args = parser.parse_args()
 
 	# run
