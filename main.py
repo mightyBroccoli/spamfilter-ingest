@@ -16,15 +16,14 @@ from report import ReportDomain
 
 
 class AbuseReport:
-	"""Ingestation script for ejabberd spam logs"""
+	"""ingestion script for ejabberd spam logs"""
 
 	def __init__(self, arguments):
 		self.infile = arguments.infile
 		self.domain = arguments.domain
 		self.report = arguments.report
-		# TODO revise new parameter names
-		self.a = arguments.a
-		self.b = arguments.b or "now"
+		self.start = arguments.start
+		self.stop = arguments.stop or "now"
 		self.path = os.path.dirname(__file__)
 		self.config = Config()
 
@@ -75,20 +74,21 @@ class AbuseReport:
 			MAX(ts) AS last FROM spam'''
 
 		# date -Ins outputs %S,%f but python sqlite3 is not able to handle the ,
-		self.a = self.a.replace(',', '.')
-		self.b = self.b.replace(',', '.')
+		if None not in (self.start, self.stop):
+			self.start = self.start.replace(',', '.')
+			self.stop= self.stop.replace(',', '.')
 
 		# if a then from a up until end
-		if self.a is not None:
-			# apply localtime to the provided timestamp
+		if self.start is not None:
+			# correct timestamp for the local time zone
 			timesperiod = '''ts > STRFTIME('%Y-%m-%dT%H:%M:%S', '{a}', 'localtime') \
-				AND ts < STRFTIME('%Y-%m-%dT%H:%M:%S', '{b}', 'localtime')'''.format(a=self.a, b=self.b)
+				AND ts < STRFTIME('%Y-%m-%dT%H:%M:%S', '{b}', 'localtime')'''.format(a=self.start, b=self.stop)
 		else:
-			# default: query 1 month timeperiod
+			# default: query 1 month
 			timesperiod = '''ts > DATETIME('now','start of day', '-1 months') \
 				AND ts < STRFTIME('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')'''
 
-		# if a domain is specified return only that info
+		# if one or more domains are specified return only their info
 		if self.domain is not None:
 
 			# iterate over all domains supplied
@@ -240,8 +240,8 @@ if __name__ == "__main__":
 	parser.add_argument('-in', '--infile', nargs='+', help='set path to input file', dest='infile')
 	parser.add_argument('-d', '--domain', action='append', help='specify report domain', dest='domain')
 	parser.add_argument('-r', '--report', action='store_true', help='toggle report output to file', dest='report')
-	parser.add_argument('-f', '--from', help='ISO-8601 timestamp where to start the search', dest='a')
-	parser.add_argument('-t', '--to', help='ISO-8601 timestamp up until where to start the search', dest='b')
+	parser.add_argument('-f', '--from', help='ISO-8601 timestamp from where to search', dest='start')
+	parser.add_argument('-t', '--to', help='ISO-8601 timestamp up until where to search', dest='stop')
 	args = parser.parse_args()
 
 	# run

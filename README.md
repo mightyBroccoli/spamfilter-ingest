@@ -34,7 +34,7 @@ $ cat config.json
 
 ## usage main.py
 ```
-usage: main.py [-h] [-in INFILE [INFILE ...]] [-d DOMAIN] [-r]
+usage: main.py [-h] [-in INFILE [INFILE ...]] [-d DOMAIN] [-r] [-f A] [-t B]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -43,6 +43,8 @@ optional arguments:
   -d DOMAIN, --domain DOMAIN
                         specify report domain
   -r, --report          toggle report output to file
+  -f A, --from A        ISO-8601 timestamp where to start the search
+  -t B, --to B          ISO-8601 timestamp up until where to start the search
 ```
 
 #### run with no argument
@@ -95,3 +97,8 @@ $ ./main.py --d example.tld -d example.com
 #### -r / --report
 This flag will only take effect if the `-d` or `--domain` argument is used. If that is the case, the script will 
 automatically gather information about the specified domain and write them to the `report` directory.
+
+#### -f / --from and -t / --to
+With this flag it is possible to provide an [ISO-8601](https://www.w3.org/TR/NOTE-datetime) timestamp with the specified
+query, to further narrow the expected result.
+All outputting querys support the custom time period flags.
