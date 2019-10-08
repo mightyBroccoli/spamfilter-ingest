@@ -76,7 +76,7 @@ class AbuseReport:
 		# date -Ins outputs %S,%f but python sqlite3 is not able to handle the ,
 		if None not in (self.start, self.stop):
 			self.start = self.start.replace(',', '.')
-			self.stop= self.stop.replace(',', '.')
+			self.stop = self.stop.replace(',', '.')
 
 		# if a then from a up until end
 		if self.start is not None:
@@ -114,8 +114,8 @@ class AbuseReport:
 
 		else:
 			# build and execute
-			grouping = 'GROUP BY domain ORDER BY 1 DESC LIMIT 10'
-			sql = '''{base} WHERE {time}{group};'''.format(base=base_query, time=timesperiod, group=grouping)
+			sql = '''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain AS \
+				domain from spam WHERE {time} GROUP BY domain ORDER BY 1 DESC LIMIT 10;'''.format(time=timesperiod)
 			result = self.conn.execute(sql).fetchall()
 
 		# tabelize data
