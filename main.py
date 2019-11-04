@@ -23,7 +23,7 @@ class AbuseReport:
 		self.domain = arguments.domain
 		self.report = arguments.report
 		self.start = arguments.start
-		self.stop = arguments.stop or "now"
+		self.stop = arguments.stop
 		self.path = os.path.dirname(__file__)
 		self.config = Config()
 
@@ -69,24 +69,15 @@ class AbuseReport:
 		# init result list
 		result = list()
 
-		# building block base query
-		base_query = '''SELECT COUNT(*) AS messages,COUNT(DISTINCT user) AS bots,domain, MIN(ts) AS first, \
-			MAX(ts) AS last FROM spam'''
+		# parse time values
+		if self.start is None:
+			# default timeperiod are 31 days calculated via the timedelta
+			default = dt.datetime.combine(dt.date.today(), dt.time()) - dt.timedelta(days=31)
+			self.start = dt.datetime.strftime(default, "%Y-%m-%dT%H:%M:%S")
 
-		# date -Ins outputs %S,%f but python sqlite3 is not able to handle the ,
-		if None not in (self.start, self.stop):
-			self.start = self.start.replace(',', '.')
-			self.stop = self.stop.replace(',', '.')
-
-		# if a then from a up until end
-		if self.start is not None:
-			# correct timestamp for the local time zone
-			timesperiod = '''ts > STRFTIME('%Y-%m-%dT%H:%M:%S', '{a}', 'localtime') \
-				AND ts < STRFTIME('%Y-%m-%dT%H:%M:%S', '{b}', 'localtime')'''.format(a=self.start, b=self.stop)
-		else:
-			# default: query 1 month
-			timesperiod = '''ts > DATETIME('now','start of day', '-1 months') \
-				AND ts < STRFTIME('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')'''
+		if self.stop is None:
+			# set stop value to now
+			self.stop = dt.datetime.strftime(dt.datetime.now(), '%Y-%m-%dT%H:%M:%S')
 
 		# if one or more domains are specified return only their info
 		if self.domain is not None:
@@ -95,8 +86,17 @@ class AbuseReport:
 			for domain in self.domain:
 
 				# build and execute
-				sql = '''{base} WHERE domain = :domain AND {time};'''.format(base=base_query, time=timesperiod)
-				query = self.conn.execute(sql, {"domain": domain}).fetchall()
+				sql = '''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain, MIN(ts) AS first, MAX(ts) AS last \
+				FROM spam \
+				WHERE domain = :domain \
+				AND ts > :start \
+				AND ts < :stop;'''
+				parameter = {
+					"domain": domain,
+					"start": self.start,
+					"stop": self.stop
+				}
+				query = self.conn.execute(sql, parameter).fetchall()
 
 				# if specified domain is not listed yet, the resulting table will not show the domain name
 				# this ugly tuple 2 list swap prevents this
@@ -114,9 +114,11 @@ class AbuseReport:
 
 		else:
 			# build and execute
-			sql = '''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain AS \
-				domain from spam WHERE {time} GROUP BY domain ORDER BY 1 DESC LIMIT 10;'''.format(time=timesperiod)
-			result = self.conn.execute(sql).fetchall()
+			sql = '''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain AS domain from spam \
+			WHERE ts > :start \
+			AND ts < :stop \
+			GROUP BY domain ORDER BY 1 DESC LIMIT 10;'''
+			result = self.conn.execute(sql, {"start": self.start, "stop": self.stop}).fetchall()
 
 		# tabelize data
 		spam_table = tabulate.tabulate(result, headers=["messages", "bots", "domain", "first seen", "last seen"],
