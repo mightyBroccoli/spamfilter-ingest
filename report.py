@@ -2,15 +2,18 @@
 import dns.resolver as dns
 import tabulate
 
+from config import Config
+
 
 class ReportDomain:
-	def __init__(self, config, conn):
+	def __init__(self, conn, start, stop):
 		"""
-		:param config: configuration object
 		:param conn: sqlite connection object
 		"""
-		self.config = config
+		self.config = Config().load()
 		self.conn = conn
+		self.start = start
+		self.stop = stop
 
 	def template(self, template: str, domain: str, query: list):
 		"""
@@ -20,7 +23,7 @@ class ReportDomain:
 		:param query: list of tuples containing the query results for the specified domain/s
 		:return: string containing the fully formatted abuse report
 		"""
-		name = self.config.get_at("name")
+		name = self.config["name"]
 
 		# lookup and format srv target and ip
 		srv, ips = self.srv(domain)

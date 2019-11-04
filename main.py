@@ -11,7 +11,6 @@ import sys
 import tabulate
 from defusedxml import ElementTree
 
-from config import Config
 from report import ReportDomain
 
 
@@ -25,7 +24,6 @@ class AbuseReport:
 		self.start = arguments.start
 		self.stop = arguments.stop
 		self.path = os.path.dirname(__file__)
-		self.config = Config()
 
 		self.conn = sqlite3.connect("/".join([self.path, "spam.db"]))
 		self.jid_pattern = re.compile("^(?:([^\"&'/:<>@]{1,1023})@)?([^/@]{1,1023})(?:/(.{1,1023}))?$")
@@ -204,7 +202,7 @@ class AbuseReport:
 		:param query: list of tuples containing the query results for the specified domain/s
 		"""
 		# init report class
-		report = ReportDomain(self.config, self.conn)
+		report = ReportDomain(self.conn, self.start, self.stop)
 
 		try:
 			# open abuse report template file
