@@ -26,6 +26,7 @@ class AbuseReport:
 		self.path = os.path.dirname(__file__)
 
 		self.conn = sqlite3.connect("/".join([self.path, "spam.db"]))
+		self.Report = ReportDomain(self.conn)
 		self.jid_pattern = re.compile("^(?:([^\"&'/:<>@]{1,1023})@)?([^/@]{1,1023})(?:/(.{1,1023}))?$")
 		self.message_pattern = re.compile(r'<message.*?</message>', re.DOTALL)
 
@@ -77,6 +78,9 @@ class AbuseReport:
 			# set stop value to now
 			self.stop = dt.datetime.strftime(dt.datetime.now(), '%Y-%m-%dT%H:%M:%S')
 
+		# add validated timestamps to report class
+		self.Report.addtime(self.start, self.stop)
+
 		# if one or more domains are specified return only their info
 		if self.domain is not None:
 
@@ -84,11 +88,10 @@ class AbuseReport:
 			for domain in self.domain:
 
 				# build and execute
-				sql = '''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain, MIN(ts) AS first, MAX(ts) AS last \
-				FROM spam \
-				WHERE domain = :domain \
-				AND ts > :start \
-				AND ts < :stop;'''
+				sql = '''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain, MIN(ts) AS first, MAX(ts) AS last
+					FROM spam
+					WHERE domain = :domain
+					AND ts > :start AND ts < :stop;'''
 				parameter = {
 					"domain": domain,
 					"start": self.start,
@@ -112,15 +115,14 @@ class AbuseReport:
 
 		else:
 			# build and execute
-			sql = '''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain AS domain from spam \
-			WHERE ts > :start \
-			AND ts < :stop \
+			sql = '''SELECT COUNT(*) AS messages, COUNT(DISTINCT user) AS bots, domain AS domain from spam
+				WHERE ts > :start AND ts < :stop
 			GROUP BY domain ORDER BY 1 DESC LIMIT 10;'''
 			result = self.conn.execute(sql, {"start": self.start, "stop": self.stop}).fetchall()
 
 		# tabelize data
-		spam_table = tabulate.tabulate(result, headers=["messages", "bots", "domain", "first seen", "last seen"],
-									   tablefmt="github")
+		spam_table = tabulate.tabulate(result, tablefmt="psql", headers=["messages", "bots", "domain","first seen",
+																		   "last seen"])
 
 		# output to stdout
 		output = "\n\n".join([spam_table])
@@ -201,9 +203,6 @@ class AbuseReport:
 		:param domain: string containing a domain name
 		:param query: list of tuples containing the query results for the specified domain/s
 		"""
-		# init report class
-		report = ReportDomain(self.conn, self.start, self.stop)
-
 		try:
 			# open abuse report template file
 			with open("/".join([self.path, "template/abuse-template.txt"]), "r", encoding="utf-8") as template:
@@ -223,15 +222,15 @@ class AbuseReport:
 
 		# write report files
 		with open("/".join([self.path, "report", report_filename]), "w", encoding="utf-8") as report_out:
-			content = report.template(report_template, domain, query)
+			content = self.Report.template(report_template, domain, query)
 			report_out.write(content)
 
 		with open("/".join([self.path, "report", jids_filename]), "w", encoding="utf-8") as report_out:
-			content = report.jids(domain)
+			content = self.Report.jids(domain)
 			report_out.write(content)
 
 		with open("/".join([self.path, "report", logs_filename]), "w", encoding="utf-8") as report_out:
-			content = report.logs(domain)
+			content = self.Report.logs(domain)
 			report_out.write(content)
 
 
