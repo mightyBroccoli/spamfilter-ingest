@@ -2,15 +2,23 @@
 import dns.resolver as dns
 import tabulate
 
+from config import Config
+
 
 class ReportDomain:
-	def __init__(self, config, conn):
+	def __init__(self, conn):
 		"""
-		:param config: configuration object
 		:param conn: sqlite connection object
 		"""
-		self.config = config
+		self.config = Config().load()
 		self.conn = conn
+		self.start = int()
+		self.stop = int()
+
+	def addtime(self, start, stop):
+		# add start and stop timestamps
+		self.start = start
+		self.stop = stop
 
 	def template(self, template: str, domain: str, query: list):
 		"""
@@ -20,7 +28,7 @@ class ReportDomain:
 		:param query: list of tuples containing the query results for the specified domain/s
 		:return: string containing the fully formatted abuse report
 		"""
-		name = self.config.get_at("name")
+		name = self.config["name"]
 
 		# lookup and format srv target and ip
 		srv, ips = self.srv(domain)
@@ -37,9 +45,13 @@ class ReportDomain:
 		:param domain: string containing a domain name
 		:return: formatted result string
 		"""
-
-		jids = self.conn.execute('''SELECT user || '@' || domain AS jid FROM spam WHERE ts BETWEEN DATE('now','-14 days') 
-		AND DATE('now') AND domain=:domain GROUP BY user ORDER BY 1;''', {"domain": domain}).fetchall()
+		sql = '''SELECT user || '@' || domain AS jid FROM spam
+			WHERE ts > :start
+			AND ts < :stop
+			AND domain = :domain
+			GROUP BY user ORDER BY 1;'''
+		param = {"domain": domain, "start": self.start, "stop":self.stop}
+		jids = self.conn.execute(sql, param).fetchall()
 
 		return tabulate.tabulate(jids, tablefmt="plain")
 
@@ -49,11 +61,15 @@ class ReportDomain:
 		:param domain: string containing a domain name
 		:return: formatted string containing the result
 		"""
-		logs = self.conn.execute('''SELECT CHAR(10) || MIN(ts) || ' - ' || MAX(ts) || char(10) || COUNT(*) || 
-			'messages:' || char(10) ||'========================================================================' || 
-			char(10) || message || char(10) || '========================================================================'
-			FROM spam WHERE ts BETWEEN DATE('now','-14 days') AND DATE('now') AND domain=:domain GROUP BY message ORDER
-			BY COUNT(*) DESC LIMIT 10;''', {"domain": domain}).fetchall()
+		sql = '''SELECT CHAR(10) || MIN(ts) || ' - ' || MAX(ts) || char(10) || COUNT(*) || 'messages:' || char(10) || 
+			'========================================================================' || char(10) || message || 
+			char(10) || '========================================================================' FROM spam
+			WHERE ts > :start
+			AND ts < :stop
+			AND domain = :domain
+			GROUP BY message ORDER BY COUNT(*) DESC LIMIT 10;'''
+		param = {"domain": domain, "start": self.start, "stop": self.stop}
+		logs = self.conn.execute(sql, param).fetchall()
 
 		return tabulate.tabulate(logs, tablefmt="plain")
 
