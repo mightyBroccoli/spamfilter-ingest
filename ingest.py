@@ -7,30 +7,26 @@ import sys
 from defusedxml import ElementTree
 
 
-class Ingest:
+class IngestLogfile:
     """log ingestion class"""
-    def __init__(self, conn, infile: list = None):
+    def __init__(self, conn):
         """
         :param conn: sqlite connection object
-        :param infile: list containing log filenames to be ingested
         """
         self.conn = conn
-        self.infile = infile
 
         self.jid_pattern = re.compile("^(?:([^\"&'/:<>@]{1,1023})@)?([^/@]{1,1023})(?:/(.{1,1023}))?$")
         self.message_pattern = re.compile(r'<message.*?</message>', re.DOTALL)
 
-        self.ingest()
-
-    def ingest(self):
+    def read(self, infile: list = None):
         """
-        ingest method to split up the ingest file list
-        if necessary decompression and decoding are applied
+        ingest method to split up the ingest file list, if necessary decompression and decoding are applied
+        :param infile: list containing log filenames to be ingested
         """
         magic_number = b"\x1f\x8b\x08"
 
         # iterate over all infile elements
-        for element in self.infile:
+        for element in infile:
 
             try:
                 # open file in binary mode

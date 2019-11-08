@@ -8,7 +8,7 @@ import sys
 
 import tabulate
 
-from ingest import Ingest
+from ingest import IngestLogfile
 from report import ReportDomain
 
 
@@ -25,6 +25,7 @@ class AbuseReport:
 
         self.conn = sqlite3.connect("/".join([self.path, "spam.db"]))
         self.Report = ReportDomain(self.conn)
+        self.Ingest = IngestLogfile(self.conn)
 
     def main(self):
         """main method guiding the actions to take"""
@@ -37,10 +38,10 @@ class AbuseReport:
 
         elif self.infile:
             # infile set -> ingest
-            Ingest(self.conn, self.infile)
+            self.Ingest.read(self.infile)
 
         # close sqlite connection
-		self.conn.close()
+        self.conn.close()
 
 	def check(self):
 		# check if the minimum requirements are met
